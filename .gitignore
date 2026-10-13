@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+backend/venv/
+
+# Build outputs
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Environment & Secrets (DO NOT COMMIT)
+.env
+backend/.env
+frontend/.env.local
+
+# Databases & local storage
+*.db
+*.sqlite
+voxera.db
+backend/voxera.db
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
