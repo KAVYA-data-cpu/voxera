@@ -1,35 +1,14 @@
 // =========================================================
 // src/components/NotificationPanel.tsx
 //
-// Dropdown panel showing recent notifications.
-// Fetches from GET /notifications on the backend.
-// Falls back to placeholder data if the API isn't ready.
+// Refined Notification Panel Dropdown.
+// Displays recent notifications with unread states and mark-all-read.
 // =========================================================
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck, X, CheckCircle2, Clock } from 'lucide-react';
 import api from '../lib/api';
 import type { Notification } from '../types';
-
-// Placeholder data shown while loading or if API returns nothing
-const PLACEHOLDER_NOTIFICATIONS: Notification[] = [
-  {
-    id: 1,
-    user_id: 0,
-    title: 'Welcome to Voxera!',
-    message: 'Your account is set up. Start by creating your first 3D project.',
-    is_read: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    user_id: 0,
-    title: 'Feature 1 Complete',
-    message: 'User & Account System is live. More features coming soon!',
-    is_read: true,
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
 
 interface Props {
   onClose: () => void;
@@ -40,7 +19,6 @@ export default function NotificationPanel({ onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close panel if user clicks outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -51,100 +29,107 @@ export default function NotificationPanel({ onClose }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  // Fetch notifications from backend
   useEffect(() => {
     api
       .get<Notification[]>('/notifications')
       .then((res) => setNotifications(res.data))
-      .catch(() => setNotifications(PLACEHOLDER_NOTIFICATIONS))
+      .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
   }, []);
 
+  const handleMarkAllRead = async () => {
+    try {
+      await api.patch('/notifications/mark-all-read');
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch {
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    }
+  };
+
   const unreadCount = notifications.filter((n) => !n.is_read).length;
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    // In a real app you'd also call PATCH /notifications/mark-all-read
-  };
-
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
 
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-12 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 overflow-hidden"
+      className="absolute right-0 top-12 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200/80 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
         <div className="flex items-center gap-2">
-          <Bell size={16} className="text-brand-500" />
-          <span className="font-semibold text-sm">Notifications</span>
+          <Bell size={16} className="text-indigo-600 dark:text-indigo-400" />
+          <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+            Notifications
+          </h3>
           {unreadCount > 0 && (
-            <span className="bg-brand-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-              {unreadCount}
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+              {unreadCount} new
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
-              onClick={markAllRead}
-              title="Mark all as read"
-              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+              onClick={handleMarkAllRead}
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
             >
-              <CheckCheck size={16} />
+              <CheckCheck size={13} />
+              <span>Mark all read</span>
             </button>
           )}
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+            className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label="Close"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
       </div>
 
-      {/* List */}
-      <div className="max-h-80 overflow-y-auto">
+      {/* Body List */}
+      <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse space-y-1">
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+                <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+              </div>
+            ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center py-8 text-slate-400 text-sm gap-2">
-            <Bell size={32} className="opacity-30" />
-            <p>No notifications yet</p>
+          <div className="text-center py-10 px-4 space-y-2">
+            <CheckCircle2 size={24} className="text-slate-300 dark:text-slate-600 mx-auto" />
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              You&apos;re completely up to date
+            </p>
+            <p className="text-[11px] text-slate-400">
+              Alerts regarding completed slicing jobs or generation runs appear here.
+            </p>
           </div>
         ) : (
           notifications.map((n) => (
             <div
               key={n.id}
-              className={`px-4 py-3 border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
-                !n.is_read ? 'bg-brand-50/50 dark:bg-brand-900/10' : ''
+              className={`p-3.5 text-xs transition-colors ${
+                !n.is_read
+                  ? 'bg-indigo-50/40 dark:bg-indigo-950/20'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${!n.is_read ? 'text-brand-700 dark:text-brand-300' : ''}`}>
-                    {n.title}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                    {n.message}
-                  </p>
-                </div>
-                {!n.is_read && (
-                  <div className="w-2 h-2 bg-brand-500 rounded-full mt-1 flex-shrink-0" />
-                )}
+                <p className={`font-semibold ${!n.is_read ? 'text-indigo-950 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                  {n.title}
+                </p>
+                <span className="text-[10px] text-slate-400 whitespace-nowrap font-mono flex items-center gap-0.5">
+                  <Clock size={10} />
+                  {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1">{timeAgo(n.created_at)}</p>
+              <p className="text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                {n.message}
+              </p>
             </div>
           ))
         )}

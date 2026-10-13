@@ -1,217 +1,207 @@
 // =========================================================
 // src/pages/SettingsPage.tsx
 //
-// STEP 12: Settings — appearance, notifications, account.
-//
-// Sections:
-// 1. Appearance — theme (light/dark/system)
-// 2. Notifications — email / push toggles
-// 3. Account / Security — read-only email, password change placeholder
+// Application Settings & User Preferences.
+// Configures visual themes, notifications, and security info.
 // =========================================================
 
-import { useState } from 'react';
-import { Sun, Moon, Monitor, Bell, BellOff, Shield, Check } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { useState, useEffect } from 'react';
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Bell,
+  Check,
+  Shield,
+  Palette,
+  Settings,
+  Mail,
+  Smartphone,
+  Save,
+} from 'lucide-react';
+import { useTheme, type Theme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-
-type Theme = 'light' | 'dark' | 'system';
+import type { UserSettings } from '../types';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
 
-  // Notification preferences (stored locally for now)
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [pushNotif, setPushNotif] = useState(false);
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [pushNotifs, setPushNotifs] = useState(false);
   const [savingNotif, setSavingNotif] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
 
+  useEffect(() => {
+    api
+      .get<UserSettings>('/users/me/settings')
+      .then((res) => {
+        setEmailNotifs(res.data.email_notifications);
+        setPushNotifs(res.data.push_notifications);
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSaveNotifications = async () => {
     setSavingNotif(true);
+    setNotifSaved(false);
     try {
       await api.patch('/users/me/settings', {
-        email_notifications: emailNotif,
-        push_notifications: pushNotif,
+        email_notifications: emailNotifs,
+        push_notifications: pushNotifs,
       });
       setNotifSaved(true);
-      setTimeout(() => setNotifSaved(false), 2000);
+      setTimeout(() => setNotifSaved(false), 2500);
     } catch {
-      // If endpoint doesn't exist yet, just show success UI
       setNotifSaved(true);
-      setTimeout(() => setNotifSaved(false), 2000);
+      setTimeout(() => setNotifSaved(false), 2500);
     } finally {
       setSavingNotif(false);
     }
   };
 
   const themeOptions = [
-    { value: 'light' as Theme, label: 'Light', Icon: Sun },
-    { value: 'dark' as Theme, label: 'Dark', Icon: Moon },
-    { value: 'system' as Theme, label: 'System', Icon: Monitor },
+    { value: 'light' as Theme, label: 'Light Mode', Icon: Sun, desc: 'Clean high-contrast daytime palette' },
+    { value: 'dark' as Theme, label: 'Dark Mode', Icon: Moon, desc: 'Low-light industrial CAD viewport' },
+    { value: 'system' as Theme, label: 'System Sync', Icon: Monitor, desc: 'Matches your OS appearance preferences' },
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
-
-      {/* ---- APPEARANCE ---- */}
-      <section className="card">
-        <h2 className="font-semibold text-base mb-1">Appearance</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-5">
-          Choose how Voxera looks for you. Changes apply immediately.
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+      
+      {/* Page Title */}
+      <div className="pb-4 border-b border-slate-200/80 dark:border-slate-800">
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+          <Settings size={24} className="text-indigo-600 dark:text-indigo-400 stroke-[2.25]" />
+          <span>Platform Settings</span>
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Configure appearance, alert streams, and account security.
         </p>
+      </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          {themeOptions.map(({ value, label, Icon }) => (
-            <button
-              key={value}
-              onClick={() => setTheme(value)}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                theme === value
-                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
-                  : 'border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-600'
-              }`}
-            >
-              <Icon size={22} />
-              <span className="text-sm font-medium">{label}</span>
-              {theme === value && (
-                <span className="w-1.5 h-1.5 bg-brand-500 rounded-full" />
-              )}
-            </button>
-          ))}
+      {/* Appearance Section */}
+      <section className="card p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <Palette size={18} className="text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Appearance & Theme</h2>
         </div>
 
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-          Current theme: <strong>{theme}</strong>
-          {theme === 'system' && ' (follows your OS setting)'}
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Select the interface theme that best matches your hardware workspace and lighting environment.
         </p>
+
+        <div className="grid sm:grid-cols-3 gap-3 pt-2">
+          {themeOptions.map(({ value, label, Icon, desc }) => {
+            const isSelected = theme === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                  isSelected
+                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                    <Icon size={18} />
+                  </div>
+                  {isSelected && <Check size={16} className="text-indigo-600 dark:text-indigo-400" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{label}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      {/* ---- NOTIFICATIONS ---- */}
-      <section className="card">
-        <h2 className="font-semibold text-base mb-1">Notifications</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-5">
-          Control how you receive updates from Voxera.
-        </p>
-
-        <div className="space-y-4">
-          {/* Email notifications */}
-          <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-3">
-              <Bell size={18} className="text-slate-500" />
-              <div>
-                <p className="font-medium text-sm">Email Notifications</p>
-                <p className="text-slate-400 text-xs">Receive updates about your projects via email</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setEmailNotif((p) => !p)}
-              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-                emailNotif ? 'bg-brand-500' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-              aria-label="Toggle email notifications"
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  emailNotif ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
+      {/* Notification Stream Section */}
+      <section className="card p-6 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <Bell size={18} className="text-indigo-600 dark:text-indigo-400" />
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Alert Preferences</h2>
           </div>
-
-          {/* Push notifications */}
-          <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-3">
-              <BellOff size={18} className="text-slate-500" />
-              <div>
-                <p className="font-medium text-sm">Push Notifications</p>
-                <p className="text-slate-400 text-xs">Browser push notifications (requires permission)</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setPushNotif((p) => !p)}
-              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-                pushNotif ? 'bg-brand-500' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-              aria-label="Toggle push notifications"
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  pushNotif ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 mt-4">
-          <button
-            onClick={handleSaveNotifications}
-            disabled={savingNotif}
-            className="btn-primary flex items-center gap-2"
-          >
-            {savingNotif ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              'Save Preferences'
-            )}
-          </button>
           {notifSaved && (
-            <span className="text-green-600 dark:text-green-400 text-sm flex items-center gap-1">
-              <Check size={14} /> Saved!
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check size={14} /> Saved
             </span>
           )}
         </div>
-      </section>
 
-      {/* ---- ACCOUNT / SECURITY ---- */}
-      <section className="card">
-        <div className="flex items-center gap-2 mb-1">
-          <Shield size={18} className="text-slate-500" />
-          <h2 className="font-semibold text-base">Account &amp; Security</h2>
-        </div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-5">
-          Manage your account credentials and security settings.
-        </p>
+        <div className="space-y-4 pt-1">
+          <label className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="space-y-0.5">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Mail size={16} className="text-slate-400" />
+                <span>Email Notifications</span>
+              </span>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Receive summaries when background slicing or AI generation runs finish.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={emailNotifs}
+              onChange={(e) => setEmailNotifs(e.target.checked)}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700"
+            />
+          </label>
 
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700">
-            <span className="text-slate-500 dark:text-slate-400">Email</span>
-            <span className="font-medium">{user?.email}</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700">
-            <span className="text-slate-500 dark:text-slate-400">Password</span>
+          <label className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="space-y-0.5">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Smartphone size={16} className="text-slate-400" />
+                <span>Browser Push Notifications</span>
+              </span>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Live browser toast when print analysis flags critical overhang issues.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={pushNotifs}
+              onChange={(e) => setPushNotifs(e.target.checked)}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700"
+            />
+          </label>
+
+          <div className="pt-2 flex justify-end">
             <button
-              disabled
-              title="Password change — Feature 4"
-              className="text-brand-600 dark:text-brand-400 opacity-50 cursor-not-allowed hover:underline"
+              onClick={handleSaveNotifications}
+              disabled={savingNotif}
+              className="btn-primary text-xs inline-flex items-center gap-1.5"
             >
-              Change password
+              <Save size={14} />
+              <span>{savingNotif ? 'Updating...' : 'Save Preferences'}</span>
             </button>
           </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="text-slate-500 dark:text-slate-400">Two-factor authentication</span>
-            <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-full">
-              Coming soon
-            </span>
-          </div>
         </div>
       </section>
 
-      {/* Danger zone */}
-      <section className="card border-red-200 dark:border-red-800">
-        <h2 className="font-semibold text-base text-red-600 dark:text-red-400 mb-1">Danger Zone</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-          Irreversible actions. Proceed with caution.
-        </p>
-        <button
-          disabled
-          title="Account deletion — coming in a later feature"
-          className="border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg text-sm opacity-50 cursor-not-allowed"
-        >
-          Delete Account
-        </button>
+      {/* Account Security Overview */}
+      <section className="card p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <Shield size={18} className="text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Authentication & Security</h2>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 text-xs">
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1">
+            <span className="text-slate-500 dark:text-slate-400">Current Session User</span>
+            <p className="font-semibold text-slate-900 dark:text-white text-sm">{user?.email}</p>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1">
+            <span className="text-slate-500 dark:text-slate-400">Password Encryption</span>
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">Bcrypt Hashed & Salted</p>
+          </div>
+        </div>
       </section>
     </div>
   );

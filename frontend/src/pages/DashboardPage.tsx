@@ -1,23 +1,32 @@
 // =========================================================
 // src/pages/DashboardPage.tsx
 //
-// FEATURE 2: Updated dashboard with real project CRUD.
-//
-// Changes from Feature 1:
-// - "New 3D Project" button is now active (opens CreateProjectModal)
-// - Recent projects use real API data (no more placeholders)
-// - ProjectCard now has full context menu (rename/delete/duplicate/save)
-// - Stats are computed from real data
-// - Saved count fetched from API
+// Modern, professionally engineered dashboard for Voxera.
+// Features:
+// - Professional Hero & Status banner with quick launch
+// - Key workspace operational metrics
+// - Recent projects gallery with stateful cards
+// - Saved items preview
+// - System announcements & activity stream
 // =========================================================
 
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Plus, FolderKanban, Bookmark, Bell, Cpu, TrendingUp,
+  Plus,
+  FolderKanban,
+  Bookmark,
+  TrendingUp,
+  Cpu,
+  Layers,
+  ArrowRight,
+  Sparkles,
+  Clock,
+  Printer,
+  ChevronRight,
+  HardDriveDownload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ProfileCard from '../components/ProfileCard';
 import ProjectCard from '../components/ProjectCard';
 import CreateProjectModal from '../components/CreateProjectModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -34,22 +43,20 @@ import {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [savedCount, setSavedCount] = useState(0);
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Create modal
+  // Modal & Dialog state
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Delete confirmation
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const firstName = user?.name.split(' ')[0] || 'there';
+  const firstName = user?.name ? user.name.split(' ')[0] : 'Engineer';
 
-  // ---- FETCH DATA ----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -60,11 +67,11 @@ export default function DashboardPage() {
       ]);
       setProjects(projData);
       setNotifications(notifRes.data);
-      setSavedCount(savedRes.data.length);
+      setSavedProjects(savedRes.data);
     } catch {
-      // On error, show empty state (graceful degradation)
       setProjects([]);
       setNotifications([]);
+      setSavedProjects([]);
     } finally {
       setLoading(false);
     }
@@ -74,9 +81,10 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // ---- PROJECT ACTION HANDLERS ----
+  // Project Actions
   const handleProjectCreated = (newProject: Project) => {
     setProjects((prev) => [newProject, ...prev]);
+    navigate(`/projects/${newProject.id}`);
   };
 
   const handleRename = async (project: Project, newName: string) => {
@@ -119,178 +127,284 @@ export default function DashboardPage() {
     try {
       if (project.is_saved) {
         await unsaveProject(project.id);
-        setSavedCount((c) => Math.max(0, c - 1));
+        setSavedProjects((prev) => prev.filter((s) => s.project_id !== project.id));
       } else {
         await saveProject(project.id);
-        setSavedCount((c) => c + 1);
+        setSavedProjects((prev) => [
+          {
+            id: Date.now(),
+            user_id: user?.id || 0,
+            project_id: project.id,
+            project,
+            saved_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
       }
       setProjects((prev) =>
         prev.map((p) => (p.id === project.id ? { ...p, is_saved: !p.is_saved } : p))
       );
     } catch {
-      alert('Failed to update saved status.');
+      alert('Failed to update bookmark.');
     }
   };
 
+  const readyCount = projects.filter((p) => p.status === 'ready' || p.status === 'completed').length;
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* ---- HEADER GREETING ---- */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Good{' '}
-            {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
-            , {firstName}! 👋
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Here&apos;s what&apos;s happening with your 3D projects.
-          </p>
+    <div className="space-y-8 animate-in fade-in duration-200">
+      
+      {/* ================= HERO & WELCOME BANNER ================= */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 text-white p-6 sm:p-8 md:p-10 shadow-lg">
+        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="max-w-2xl space-y-2">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+              <Sparkles size={13} className="text-indigo-400" />
+              <span>AI 3D CAD & Print Assistant</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
+              Welcome back, {firstName}
+            </h1>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+              Design, analyze printability, and slice complex parts for additive manufacturing with automated AI validation.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+            >
+              <Plus size={16} className="stroke-[2.5]" />
+              <span>Create New Model</span>
+            </button>
+            <Link
+              to="/projects"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors"
+            >
+              <span>Explore Projects</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
         </div>
 
-        {/* ---- CREATE NEW PROJECT BUTTON ---- */}
-        {/* Feature 2: now active, opens modal */}
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 btn-primary self-start md:self-auto"
-        >
-          <Plus size={18} />
-          New 3D Project
-        </button>
-      </div>
+        {/* Quick Capabilities Highlights Bar */}
+        <div className="mt-8 pt-6 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <Printer size={16} className="text-indigo-400" />
+            <span>FDM & SLA Slicing Ready</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Layers size={16} className="text-indigo-400" />
+            <span>Overhang & Wall Validation</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Cpu size={16} className="text-indigo-400" />
+            <span>Geometric AI Infill Analysis</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <HardDriveDownload size={16} className="text-indigo-400" />
+            <span>STL / OBJ / 3MF Support</span>
+          </div>
+        </div>
+      </section>
 
-      {/* ---- STATS ROW ---- */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ================= WORKSPACE METRICS ================= */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {[
-          { icon: FolderKanban, label: 'Total Projects',  value: loading ? '-' : projects.length,                                            color: 'text-brand-500' },
-          { icon: Bookmark,    label: 'Saved',            value: loading ? '-' : savedCount,                                                color: 'text-emerald-500' },
-          { icon: Bell,        label: 'Notifications',    value: loading ? '-' : notifications.filter((n) => !n.is_read).length,            color: 'text-orange-500' },
-          { icon: TrendingUp,  label: 'Ready to Print',   value: loading ? '-' : projects.filter((p) => p.status === 'ready').length,       color: 'text-blue-500' },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="card flex items-center gap-4 p-4">
-            <div className={`p-3 rounded-xl bg-slate-50 dark:bg-slate-700 ${color}`}>
-              <Icon size={20} />
+          {
+            label: 'Total Models',
+            value: loading ? '-' : projects.length,
+            desc: 'Stored in your CAD cloud',
+            icon: FolderKanban,
+            color: 'text-indigo-600 dark:text-indigo-400',
+            bg: 'bg-indigo-50 dark:bg-indigo-950/40',
+          },
+          {
+            label: 'Print-Ready',
+            value: loading ? '-' : readyCount,
+            desc: 'Validated geometry & sliced',
+            icon: TrendingUp,
+            color: 'text-emerald-600 dark:text-emerald-400',
+            bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+          },
+          {
+            label: 'Saved & Bookmarked',
+            value: loading ? '-' : savedProjects.length,
+            desc: 'Curated references',
+            icon: Bookmark,
+            color: 'text-amber-600 dark:text-amber-400',
+            bg: 'bg-amber-50 dark:bg-amber-950/40',
+          },
+          {
+            label: 'Pending Inquiries',
+            value: loading ? '-' : notifications.filter((n) => !n.is_read).length,
+            desc: 'Unread alerts & notifications',
+            icon: Clock,
+            color: 'text-sky-600 dark:text-sky-400',
+            bg: 'bg-sky-50 dark:bg-sky-950/40',
+          },
+        ].map((item) => (
+          <div key={item.label} className="card p-5 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {item.label}
+                </p>
+                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-slate-900 dark:text-white">
+                  {item.value}
+                </p>
+              </div>
+              <div className={`p-2.5 rounded-xl ${item.bg} ${item.color}`}>
+                <item.icon size={20} />
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{value}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              {item.desc}
+            </p>
           </div>
         ))}
-      </div>
+      </section>
 
-      {/* ---- MAIN GRID: Projects left, sidebar right ---- */}
+      {/* ================= MAIN CONTENT SPLIT ================= */}
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left 2/3: Recent Projects */}
+        
+        {/* LEFT 2/3: Recent Projects Workspace */}
         <div className="lg:col-span-2 space-y-6">
-          {/* AI placeholder CTA */}
-          <div className="rounded-xl bg-gradient-to-r from-brand-600 to-brand-800 p-6 text-white flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Cpu size={20} />
-                <span className="font-semibold">AI Design Studio</span>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-              </div>
-              <p className="text-brand-200 text-sm">
-                Generate, edit and optimize 3D models with AI. Feature 3 is in development.
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Recent Projects</span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  {projects.length}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Active components in your current workspace
               </p>
             </div>
+            <Link
+              to="/projects"
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1"
+            >
+              <span>View all projects</span>
+              <ChevronRight size={14} />
+            </Link>
           </div>
 
-          {/* Recent Projects section */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg">Recent Projects</h2>
-              <Link to="/projects" className="text-sm text-brand-600 dark:text-brand-400 hover:underline">
-                View all →
-              </Link>
+          {loading ? (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="card p-5 animate-pulse space-y-3">
+                  <div className="aspect-video bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                  <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+                </div>
+              ))}
             </div>
-
-            {/* Loading skeleton */}
-            {loading ? (
-              <div className="grid sm:grid-cols-2 gap-4">
-                {[1, 2].map((i) => (
-                  <div key={i} className="card animate-pulse">
-                    <div className="aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg mb-4" />
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-                  </div>
-                ))}
+          ) : projects.length === 0 ? (
+            <div className="card text-center py-14 px-6 border-dashed border-2">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center mb-3">
+                <FolderKanban size={24} />
               </div>
-            ) : projects.length === 0 ? (
-              // Empty state
-              <div className="card text-center py-10">
-                <FolderKanban size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-500 dark:text-slate-400 text-sm">No projects yet</p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="mt-3 btn-primary text-sm py-1.5 px-3 flex items-center gap-1 mx-auto"
-                >
-                  <Plus size={14} />
-                  Create First Project
-                </button>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-4">
-                {/* Show only 4 most recent projects on dashboard */}
-                {projects.slice(0, 4).map((p) => (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    onRename={handleRename}
-                    onDelete={handleDeleteRequest}
-                    onDuplicate={handleDuplicate}
-                    onToggleSave={handleToggleSave}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                No 3D projects created yet
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-5">
+                Start your additive manufacturing workflow by creating your first project workspace.
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <Plus size={16} />
+                <span>Create First Project</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {projects.slice(0, 4).map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onRename={handleRename}
+                  onDelete={handleDeleteRequest}
+                  onDuplicate={handleDuplicate}
+                  onToggleSave={handleToggleSave}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Right 1/3: Profile + Quick Actions + Notifications */}
+        {/* RIGHT 1/3: Quick Actions, AI Capabilities & Recent Alerts */}
         <div className="space-y-6">
-          {/* Profile widget */}
-          {user && <ProfileCard user={user} />}
-
-          {/* Quick links */}
-          <div className="card p-4">
-            <h3 className="font-semibold text-sm mb-3">Quick Actions</h3>
-            <div className="space-y-2">
+          
+          {/* Quick Workflow Navigation */}
+          <div className="card p-5 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Quick Shortcuts
+            </h3>
+            <div className="space-y-1.5">
               {[
-                { label: 'Edit Profile',     to: '/profile' },
-                { label: 'My Projects',      to: '/projects' },
-                { label: 'Saved Projects',   to: '/saved' },
-                { label: 'Settings',         to: '/settings' },
-              ].map(({ label, to }) => (
+                { label: 'Browse Project Directory', to: '/projects', sub: 'Filter, search & sort CAD files' },
+                { label: 'Bookmarked Designs', to: '/saved', sub: 'Saved community & reference parts' },
+                { label: 'Engineering Profile', to: '/profile', sub: 'Profile customization & credentials' },
+                { label: 'Platform Preferences', to: '/settings', sub: 'Theme & notification settings' },
+              ].map(({ label, to, sub }) => (
                 <Link
                   key={to}
                   to={to}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                 >
-                  <span>{label}</span>
-                  <span className="text-slate-400">→</span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {label}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{sub}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* Notifications widget */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm">Recent Notifications</h3>
-              <Bell size={16} className="text-slate-400" />
+          {/* AI 3D Print Studio Roadmap Box */}
+          <div className="card p-5 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900 border-indigo-100 dark:border-indigo-900/40 space-y-3">
+            <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
+              <Cpu size={18} />
+              <h3 className="text-sm font-bold">AI Design Engine v0.3</h3>
             </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Automated mesh repair, overhang minimization, and prompt-to-3D generation capabilities are currently in active rollout.
+            </p>
+            <div className="flex items-center justify-between text-xs pt-1 font-medium text-indigo-600 dark:text-indigo-400">
+              <span>Status: Feature 3 In Progress</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Recent System Alerts */}
+          <div className="card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                System Log
+              </h3>
+              <span className="text-[11px] text-slate-400">Real-time</span>
+            </div>
+
             {notifications.length === 0 ? (
-              <p className="text-sm text-slate-400">No notifications</p>
+              <p className="text-xs text-slate-400 py-2">No unread notifications.</p>
             ) : (
               <div className="space-y-3">
-                {notifications.slice(0, 3).map((n) => (
-                  <div key={n.id} className="text-sm">
-                    <p className={`font-medium ${!n.is_read ? 'text-brand-600 dark:text-brand-400' : ''}`}>
-                      {n.title}
+                {notifications.slice(0, 3).map((notif) => (
+                  <div key={notif.id} className="text-xs border-l-2 border-indigo-500 pl-3 py-0.5 space-y-0.5">
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">
+                      {notif.title}
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 line-clamp-2">
-                      {n.message}
+                    <p className="text-slate-500 dark:text-slate-400 line-clamp-2">
+                      {notif.message}
                     </p>
                   </div>
                 ))}
@@ -300,7 +414,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ---- MODALS ---- */}
+      {/* ================= MODALS & DIALOGS ================= */}
       {showCreateModal && (
         <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
@@ -311,8 +425,8 @@ export default function DashboardPage() {
       {projectToDelete && (
         <ConfirmDialog
           title="Delete Project"
-          message={`Are you sure you want to delete "${projectToDelete.name}"? This cannot be undone.`}
-          confirmLabel="Delete"
+          message={`Are you sure you want to permanently delete "${projectToDelete.name}"? This action cannot be undone.`}
+          confirmLabel="Delete Project"
           isDestructive
           isLoading={isDeleting}
           onConfirm={handleDeleteConfirm}

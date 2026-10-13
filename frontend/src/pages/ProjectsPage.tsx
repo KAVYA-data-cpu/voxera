@@ -1,44 +1,18 @@
 // =========================================================
 // src/pages/ProjectsPage.tsx
 //
-// FEATURE 2: Full project management page.
-//
-// This page implements:
-// 1. Fetch all projects from the API
-// 2. Create new project (via modal)
-// 3. Rename project (inline in card)
-// 4. Delete project (with confirmation dialog)
-// 5. Duplicate project
-// 6. Save/unsave project
-// 7. Search by name
-// 8. Filter by status
-// 9. Sort (recently updated, name A-Z, etc.)
-// 10. Loading state (skeleton)
-// 11. Empty state (no projects)
-// 12. Error state (API failure)
-//
-// CONCEPT: State Management
-// React state = the data a component "remembers" between renders.
-// useState returns [currentValue, setterFunction].
-// When the setter is called, React re-renders the component.
-//
-// CONCEPT: Lifting state up
-// When multiple components need the same data, put the state
-// in the closest common ancestor (this page) and pass it down
-// via props. ProjectCard doesn't manage the project list —
-// it just notifies this page via callbacks.
-//
-// DATA FLOW:
-// 1. useEffect → getProjects() → FastAPI GET /projects
-// 2. Response stored in `projects` state
-// 3. `filtered` = derived from `projects` using search/filter/sort
-// 4. ProjectCard renders each item
-// 5. User actions (delete/rename) → API call → update state locally
+// Full Project Management & Directory View.
+// Provides search debouncing, status category pills, sorting options,
+// creation trigger, and list/grid layout with complete CRUD capabilities.
 // =========================================================
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FolderKanban, Plus, Search, SortAsc, RefreshCw,
+  FolderKanban,
+  Plus,
+  Search,
+  SortAsc,
+  RefreshCw,
 } from 'lucide-react';
 import type { Project, ProjectStatus } from '../types';
 import {
@@ -53,57 +27,43 @@ import ProjectCard from '../components/ProjectCard';
 import CreateProjectModal from '../components/CreateProjectModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-// ---- Filter / Sort options ----
 type StatusFilter = ProjectStatus | 'all';
 type SortKey = 'updated_desc' | 'updated_asc' | 'created_desc' | 'created_asc' | 'name_asc' | 'name_desc';
 
 const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
-  { label: 'All',        value: 'all' },
-  { label: 'Draft',      value: 'draft' },
+  { label: 'All Projects', value: 'all' },
+  { label: 'Ready to Print', value: 'ready' },
+  { label: 'Draft', value: 'draft' },
   { label: 'Processing', value: 'processing' },
-  { label: 'Ready',      value: 'ready' },
-  { label: 'Completed',  value: 'completed' },
-  { label: 'Failed',     value: 'failed' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Failed', value: 'failed' },
 ];
 
 const SORT_OPTIONS: { label: string; value: SortKey }[] = [
   { label: 'Recently Updated', value: 'updated_desc' },
-  { label: 'Oldest Updated',   value: 'updated_asc' },
+  { label: 'Oldest Updated', value: 'updated_asc' },
   { label: 'Recently Created', value: 'created_desc' },
-  { label: 'Name A → Z',       value: 'name_asc' },
-  { label: 'Name Z → A',       value: 'name_desc' },
+  { label: 'Name (A → Z)', value: 'name_asc' },
+  { label: 'Name (Z → A)', value: 'name_desc' },
 ];
 
 export default function ProjectsPage() {
-  // ---- STATE ----
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // UI state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<SortKey>('updated_desc');
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Delete confirmation
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ---- FETCH PROJECTS ----
-  // CONCEPT: useCallback
-  // useCallback memoizes a function so it doesn't get recreated
-  // on every render. This matters here because fetchProjects is
-  // used as a dependency in useEffect — without useCallback, it
-  // would cause an infinite loop (render → new fetchProjects →
-  // useEffect fires → fetchProjects → render → ...).
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Send search/filter/sort to the backend
-      // DECISION: Backend filtering for correctness & scalability
-      // The backend has DB indexes and handles arbitrary dataset sizes.
       const data = await getProjects({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -111,84 +71,59 @@ export default function ProjectsPage() {
       });
       setProjects(data);
     } catch {
-      setError('Failed to load projects. Please try again.');
+      setError('Unable to retrieve project database. Please check connection.');
     } finally {
       setLoading(false);
     }
   }, [search, statusFilter, sort]);
 
-  // Run fetchProjects when the component mounts and whenever
-  // search/filter/sort changes.
-  // CONCEPT: useEffect dependency array
-  // The effect re-runs when any value in the array changes.
-  // Empty [] = runs only once on mount.
-  // [fetchProjects] = runs when fetchProjects changes (= when search/filter/sort change).
   useEffect(() => {
-    // CONCEPT: Debouncing
-    // Instead of hitting the API on EVERY keystroke (every letter
-    // the user types), we wait 300ms after the user stops typing.
-    // If they type again within 300ms, we cancel the previous timer.
     const timer = setTimeout(() => {
       fetchProjects();
-    }, search ? 300 : 0); // debounce search; no debounce for filter/sort
-
-    return () => clearTimeout(timer); // cleanup on next render
+    }, search ? 250 : 0);
+    return () => clearTimeout(timer);
   }, [fetchProjects, search]);
 
-  // ---- HANDLERS ----
-
-  // Called by CreateProjectModal when a project is created
   const handleProjectCreated = (newProject: Project) => {
-    // Prepend to list without refetching (optimistic UI update)
     setProjects((prev) => [newProject, ...prev]);
   };
 
-  // Called by ProjectCard when user confirms rename
   const handleRename = async (project: Project, newName: string) => {
     try {
       const updated = await updateProject(project.id, { name: newName });
-      // Update the specific project in the list
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? updated : p))
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? updated : p)));
     } catch {
-      alert('Failed to rename project. Please try again.');
+      alert('Failed to rename project.');
     }
   };
 
-  // Called by ProjectCard 3-dot menu → Delete
-  // Shows confirmation dialog first
   const handleDeleteRequest = (project: Project) => {
     setProjectToDelete(project);
   };
 
-  // Called when user confirms deletion in the dialog
   const handleDeleteConfirm = async () => {
     if (!projectToDelete) return;
     setIsDeleting(true);
     try {
       await deleteProject(projectToDelete.id);
-      // Remove from list
       setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
       setProjectToDelete(null);
     } catch {
-      alert('Failed to delete project. Please try again.');
+      alert('Failed to delete project.');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // Called by ProjectCard 3-dot menu → Duplicate
   const handleDuplicate = async (project: Project) => {
     try {
       const copy = await duplicateProject(project.id);
       setProjects((prev) => [copy, ...prev]);
     } catch {
-      alert('Failed to duplicate project. Please try again.');
+      alert('Failed to duplicate project.');
     }
   };
 
-  // Called by ProjectCard 3-dot menu → Save / Unsave
   const handleToggleSave = async (project: Project) => {
     try {
       if (project.is_saved) {
@@ -196,158 +131,163 @@ export default function ProjectsPage() {
       } else {
         await saveProject(project.id);
       }
-      // Flip is_saved locally (optimistic update)
       setProjects((prev) =>
-        prev.map((p) =>
-          p.id === project.id ? { ...p, is_saved: !p.is_saved } : p
-        )
+        prev.map((p) => (p.id === project.id ? { ...p, is_saved: !p.is_saved } : p))
       );
     } catch {
-      alert('Failed to update saved status. Please try again.');
+      alert('Failed to update bookmark.');
     }
   };
 
-  // ---- RENDER ----
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-
-      {/* ---- PAGE HEADER ---- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      
+      {/* Top Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FolderKanban size={24} className="text-brand-500" />
-            My Projects
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <FolderKanban size={24} className="text-indigo-600 dark:text-indigo-400 stroke-[2.25]" />
+            <span>My Projects</span>
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            {loading ? 'Loading...' : `${projects.length} project${projects.length !== 1 ? 's' : ''}`}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Manage your CAD models, print configurations, and generative iterations.
           </p>
         </div>
 
-        {/* Create New button */}
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2 self-start sm:self-auto"
+          className="btn-primary self-start sm:self-auto inline-flex items-center gap-2"
         >
-          <Plus size={18} />
-          New Project
+          <Plus size={16} className="stroke-[2.5]" />
+          <span>New 3D Project</span>
         </button>
       </div>
 
-      {/* ---- SEARCH + FILTER + SORT ---- */}
-      <div className="flex flex-col gap-3">
-        {/* Search input */}
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search projects..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-9 py-2"
-            />
-          </div>
-
-          {/* Sort dropdown */}
-          <div className="relative">
-            <SortAsc size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              className="input-field pl-9 py-2 pr-8 appearance-none cursor-pointer"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Control Bar: Search + Filter + Sort */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        {/* Search Input */}
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by part name or description..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field pl-10"
+          />
         </div>
 
-        {/* Status filter pills */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Status Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
           {STATUS_FILTERS.map(({ label, value }) => (
             <button
               key={value}
               onClick={() => setStatusFilter(value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
                 statusFilter === value
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-200/80 dark:border-slate-700/80'
               }`}
             >
               {label}
             </button>
           ))}
         </div>
+
+        {/* Sort selector */}
+        <div className="relative min-w-[180px]">
+          <SortAsc size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="input-field pl-9.5 pr-8 text-xs font-medium cursor-pointer"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* ---- ERROR STATE ---- */}
+      {/* Error Notice */}
       {error && (
-        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-center py-8">
-          <p className="text-red-600 dark:text-red-400 mb-3">{error}</p>
+        <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-2">
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{error}</p>
           <button
             onClick={fetchProjects}
-            className="flex items-center gap-2 mx-auto text-sm text-brand-600 dark:text-brand-400 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
           >
-            <RefreshCw size={14} />
-            Try again
+            <RefreshCw size={13} />
+            <span>Retry Connection</span>
           </button>
         </div>
       )}
 
-      {/* ---- LOADING STATE (Skeleton) ---- */}
-      {/* CONCEPT: Skeleton loader
-          Instead of a spinner (which makes the layout shift when content loads),
-          a skeleton shows gray boxes in the shape of the real content.
-          This gives the user a preview of the layout while data loads. */}
+      {/* Loading Skeleton */}
       {loading && !error && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg mb-4" />
-              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            <div key={i} className="card p-0 overflow-hidden animate-pulse">
+              <div className="aspect-[16/10] bg-slate-200 dark:bg-slate-800" />
+              <div className="p-4 space-y-2">
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/3 pt-2" />
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ---- EMPTY STATE ---- */}
+      {/* Empty State */}
       {!loading && !error && projects.length === 0 && (
-        <div className="card text-center py-16">
-          <FolderKanban size={56} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+        <div className="card text-center py-16 px-6 border-dashed border-2">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center mb-3">
+            <FolderKanban size={24} />
+          </div>
           {search || statusFilter !== 'all' ? (
-            <>
-              <p className="text-slate-600 dark:text-slate-400 font-medium">No projects match your filters</p>
-              <p className="text-sm text-slate-400 mt-1">Try a different search term or filter</p>
+            <div className="space-y-2 max-w-sm mx-auto">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                No matching projects found
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Try adjusting your search query or reset the status filters to view all components.
+              </p>
               <button
-                onClick={() => { setSearch(''); setStatusFilter('all'); }}
-                className="mt-4 text-sm text-brand-600 dark:text-brand-400 hover:underline"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                }}
+                className="btn-secondary text-xs mt-3 inline-flex items-center gap-1.5"
               >
-                Clear filters
+                <span>Reset all filters</span>
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              <p className="text-slate-600 dark:text-slate-400 font-medium">No projects yet</p>
-              <p className="text-sm text-slate-400 mt-1">Create your first project to get started</p>
+            <div className="space-y-2 max-w-sm mx-auto">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                No 3D projects created yet
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                Initialize your workspace by creating your first 3D model component.
+              </p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="btn-primary flex items-center gap-2 mx-auto mt-4"
+                className="btn-primary inline-flex items-center gap-2"
               >
                 <Plus size={16} />
-                Create Your First Project
+                <span>Create New Project</span>
               </button>
-            </>
+            </div>
           )}
         </div>
       )}
 
-      {/* ---- PROJECT GRID ---- */}
+      {/* Grid of Project Cards */}
       {!loading && !error && projects.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
@@ -361,7 +301,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ---- CREATE PROJECT MODAL ---- */}
+      {/* Modals */}
       {showCreateModal && (
         <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
@@ -369,12 +309,11 @@ export default function ProjectsPage() {
         />
       )}
 
-      {/* ---- DELETE CONFIRMATION DIALOG ---- */}
       {projectToDelete && (
         <ConfirmDialog
           title="Delete Project"
-          message={`Are you sure you want to delete "${projectToDelete.name}"? This cannot be undone.`}
-          confirmLabel="Delete"
+          message={`Are you sure you want to permanently delete "${projectToDelete.name}"? This will delete all slicing metadata and references.`}
+          confirmLabel="Delete Project"
           isDestructive
           isLoading={isDeleting}
           onConfirm={handleDeleteConfirm}

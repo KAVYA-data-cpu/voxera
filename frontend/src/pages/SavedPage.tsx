@@ -1,28 +1,13 @@
 // =========================================================
 // src/pages/SavedPage.tsx
 //
-// FEATURE 2: Saved (bookmarked) projects page.
-//
-// Changes from Feature 1:
-// - Real API data instead of placeholders
-// - Unsave button on each card
-// - Loading/empty/error states
-// - Real count from the API
-//
-// CONCEPT: Derived state
-// The `saved` state holds SavedProject objects (each containing
-// a nested `project` object). We extract just the `project`
-// field to pass into ProjectCard.
-//
-// CONCEPT: Optimistic update
-// When the user clicks "Unsave", we immediately remove it from
-// the local `saved` list (optimistic) and then make the API call.
-// If the API call fails, we re-fetch to restore the correct state.
-// This makes the UI feel instant instead of waiting for the network.
+// Curated Bookmarks & Saved Projects Directory.
+// Allows users to manage bookmarked parts with optimistic unsave.
 // =========================================================
 
 import { useEffect, useState, useCallback } from 'react';
-import { Bookmark, RefreshCw } from 'lucide-react';
+import { Bookmark, RefreshCw, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../lib/api';
 import ProjectCard from '../components/ProjectCard';
 import { unsaveProject } from '../services/projectService';
@@ -33,7 +18,6 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ---- FETCH SAVED PROJECTS ----
   const fetchSaved = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -41,7 +25,7 @@ export default function SavedPage() {
       const res = await api.get<SavedProject[]>('/projects/saved');
       setSaved(res.data);
     } catch {
-      setError('Failed to load saved projects. Please try again.');
+      setError('Unable to fetch saved projects. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -51,92 +35,91 @@ export default function SavedPage() {
     fetchSaved();
   }, [fetchSaved]);
 
-  // ---- UNSAVE HANDLER ----
-  // CONCEPT: Optimistic update
-  // 1. Immediately remove from the list (fast feedback)
-  // 2. Send DELETE /projects/{id}/save to the API
-  // 3. If the API fails, re-fetch to restore correct state
   const handleUnsave = async (project: Project) => {
-    // Step 1: Optimistic — remove from list instantly
     setSaved((prev) => prev.filter((s) => s.project_id !== project.id));
-
     try {
-      // Step 2: Tell the backend to remove the bookmark
       await unsaveProject(project.id);
     } catch {
-      // Step 3: API failed — re-fetch to restore correct state
       fetchSaved();
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* ---- HEADER ---- */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Bookmark size={24} className="text-brand-500" />
-          Saved Projects
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          {loading
-            ? 'Loading...'
-            : `${saved.length} saved project${saved.length !== 1 ? 's' : ''}`}
-        </p>
+    <div className="space-y-6 animate-in fade-in duration-200">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <Bookmark size={24} className="text-amber-500 stroke-[2.25] fill-amber-500/20" />
+            <span>Saved Projects</span>
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Bookmarked community components, reference CAD geometries, and saved templates.
+          </p>
+        </div>
+
+        <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 self-start sm:self-auto">
+          {saved.length} {saved.length === 1 ? 'Bookmark' : 'Bookmarks'}
+        </div>
       </div>
 
-      {/* ---- ERROR STATE ---- */}
+      {/* Error state */}
       {error && (
-        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-center py-8">
-          <p className="text-red-600 dark:text-red-400 mb-3">{error}</p>
+        <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-2">
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{error}</p>
           <button
             onClick={fetchSaved}
-            className="flex items-center gap-2 mx-auto text-sm text-brand-600 dark:text-brand-400 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
           >
-            <RefreshCw size={14} />
-            Try again
+            <RefreshCw size={13} />
+            <span>Try Again</span>
           </button>
         </div>
       )}
 
-      {/* ---- LOADING STATE (skeleton) ---- */}
+      {/* Loading Skeleton */}
       {loading && !error && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg mb-4" />
-              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            <div key={i} className="card p-0 overflow-hidden animate-pulse">
+              <div className="aspect-[16/10] bg-slate-200 dark:bg-slate-800" />
+              <div className="p-4 space-y-2">
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ---- EMPTY STATE ---- */}
+      {/* Empty State */}
       {!loading && !error && saved.length === 0 && (
-        <div className="card text-center py-16">
-          <Bookmark size={56} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-400 font-medium">No saved projects yet</p>
-          <p className="text-sm text-slate-400 mt-1">
-            Open any project and click &ldquo;Save&rdquo; from the menu to bookmark it here.
+        <div className="card text-center py-16 px-6 border-dashed border-2">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 mx-auto flex items-center justify-center mb-3">
+            <Bookmark size={24} />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            No saved projects yet
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-5">
+            When you find a model or community part you want to reference later, click &quot;Save&quot; on its project card.
           </p>
+          <Link to="/projects" className="btn-secondary inline-flex items-center gap-2 text-xs">
+            <span>Browse My Projects</span>
+            <ArrowRight size={14} />
+          </Link>
         </div>
       )}
 
-      {/* ---- SAVED PROJECTS GRID ---- */}
-      {/* CONCEPT: Extracting nested objects
-          Each SavedProject contains a `project` field (the nested Project).
-          We pass `s.project` to ProjectCard (which expects a Project).
-          We override `is_saved=true` so the card always shows the
-          bookmark icon as filled, even if the backend value differs.  */}
+      {/* Saved Projects Grid */}
       {!loading && !error && saved.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {saved.map((s) => (
             <ProjectCard
               key={s.id}
               project={{ ...s.project, is_saved: true }}
               isSaved
-              // Only show the save/unsave action (not rename/delete —
-              // these might be other users' projects in future community feature)
               onToggleSave={handleUnsave}
             />
           ))}

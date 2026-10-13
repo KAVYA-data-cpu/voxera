@@ -1,40 +1,40 @@
 // =========================================================
 // src/components/AppLayout.tsx
 //
-// The shell layout for all protected pages:
-// [ Navbar ]
-// [ Sidebar | Page Content ]
-//
-// Manages sidebar open/close state.
+// Root Layout for all authenticated pages.
+// Uses a full-width horizontal top navigation bar, eliminating the
+// legacy side bar to maximize productivity and workspace width.
 // =========================================================
 
-import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
-import Sidebar from './Sidebar';
 
 export default function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
-      {/* Top Navigation Bar */}
-      <Navbar
-        onToggleSidebar={() => setSidebarOpen((p) => !p)}
-        sidebarOpen={sidebarOpen}
-      />
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+      {/* Horizontal Top Navigation Bar */}
+      <Navbar />
 
-      {/* Body: Sidebar + Content */}
-      <div className="flex flex-1 relative">
-        {/* Sidebar — fixed on desktop, slide-in on mobile */}
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Main Content Viewport */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Outlet />
+      </main>
 
-        {/* Main content area — offset by sidebar width on desktop */}
-        <main className="flex-1 lg:ml-64 p-6 overflow-auto">
-          {/* <Outlet /> renders the matched child route */}
-          <Outlet />
-        </main>
-      </div>
+      {/* Modern, unobtrusive footer */}
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Voxera</span>
+            <span>•</span>
+            <span>AI-Driven 3D Design & Print Platform</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500">
+            <span>Client v0.2</span>
+            <span>•</span>
+            <span>System Status: Healthy</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

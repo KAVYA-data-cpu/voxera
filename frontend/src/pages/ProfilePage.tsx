@@ -1,17 +1,12 @@
 // =========================================================
 // src/pages/ProfilePage.tsx
 //
-// STEP 11: User Profile — view and edit profile.
-//
-// Two modes:
-// - View mode: shows avatar, name, username, bio, email
-// - Edit mode: form to update name, username, bio, avatar URL
-//
-// Calls PATCH /users/me via updateUser() from AuthContext.
+// User Profile & Engineering Credentials Page.
+// Allows updating name, username, bio, and avatar with clear feedback.
 // =========================================================
 
 import { useState, type FormEvent } from 'react';
-import { Camera, Pencil, X, Check, Mail, Calendar } from 'lucide-react';
+import { Pencil, Check, Mail, Calendar, User, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { UpdateProfileData } from '../types';
 
@@ -19,7 +14,6 @@ export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
 
-  // Edit form state — pre-filled with current user data
   const [formData, setFormData] = useState<UpdateProfileData>({
     name: user?.name || '',
     username: user?.username || '',
@@ -40,7 +34,6 @@ export default function ProfilePage() {
     .slice(0, 2);
 
   const handleEdit = () => {
-    // Reset form to current values before opening edit mode
     setFormData({
       name: user.name,
       username: user.username,
@@ -58,14 +51,17 @@ export default function ProfilePage() {
     e.preventDefault();
     setIsSaving(true);
     setSaveError('');
-    setSaveSuccess(false);
+
     try {
-      await updateUser(formData);
+      await updateUser({
+        name: formData.name?.trim() || undefined,
+        username: formData.username?.trim().toLowerCase() || undefined,
+        bio: formData.bio?.trim() || undefined,
+        avatar: formData.avatar?.trim() || undefined,
+      });
       setSaveSuccess(true);
-      setTimeout(() => {
-        setIsEditing(false);
-        setSaveSuccess(false);
-      }, 1200);
+      setIsEditing(false);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };
       setSaveError(axiosError?.response?.data?.detail || 'Failed to update profile.');
@@ -74,189 +70,160 @@ export default function ProfilePage() {
     }
   };
 
-  const joinedDate = new Date(user.created_at).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Profile</h1>
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <User size={24} className="text-indigo-600 dark:text-indigo-400 stroke-[2.25]" />
+            <span>Engineer Profile</span>
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Personal credentials, bio, and community identity.
+          </p>
+        </div>
 
-      {/* Profile Card */}
-      <div className="card">
-        {!isEditing ? (
-          /* ---- VIEW MODE ---- */
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              {user.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-brand-400"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-3xl">
-                  {initials}
-                </div>
-              )}
-            </div>
+        {!isEditing && (
+          <button
+            onClick={handleEdit}
+            className="btn-secondary self-start sm:self-auto inline-flex items-center gap-2 text-xs"
+          >
+            <Pencil size={14} />
+            <span>Edit Profile</span>
+          </button>
+        )}
+      </div>
 
-            {/* Info */}
-            <div className="flex-1 text-center sm:text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div>
-                  <h2 className="text-xl font-bold">{user.name}</h2>
-                  <p className="text-brand-500 dark:text-brand-400">@{user.username}</p>
-                </div>
-                <button onClick={handleEdit} className="btn-secondary flex items-center gap-2 self-center sm:self-auto">
-                  <Pencil size={16} />
-                  Edit Profile
-                </button>
+      {saveSuccess && (
+        <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+          <Check size={16} />
+          <span>Profile updated successfully.</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+          {saveError}
+        </div>
+      )}
+
+      {/* Profile Card View */}
+      <div className="card p-6 sm:p-8 space-y-6">
+        
+        {/* Avatar and basic info */}
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+          <div className="relative">
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-24 h-24 rounded-2xl object-cover ring-4 ring-indigo-500/20"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl font-extrabold tracking-tight shadow-md">
+                {initials}
               </div>
-
-              {user.bio ? (
-                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 leading-relaxed">
-                  {user.bio}
-                </p>
-              ) : (
-                <p className="text-slate-400 dark:text-slate-500 text-sm mb-4 italic">
-                  No bio added yet. Click Edit Profile to add one.
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <Mail size={14} />
-                  {user.email}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Calendar size={14} />
-                  Joined {joinedDate}
-                </span>
-              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 p-1 bg-white dark:bg-slate-900 rounded-full shadow-2xs">
+              <ShieldCheck size={18} className="text-emerald-500" />
             </div>
           </div>
-        ) : (
-          /* ---- EDIT MODE ---- */
-          <form onSubmit={handleSave} className="space-y-5">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold text-lg">Edit Profile</h2>
-              <button type="button" onClick={handleCancel} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-                <X size={18} />
-              </button>
+
+          <div className="text-center sm:text-left space-y-1 flex-1">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              {user.name}
+            </h2>
+            <p className="text-xs font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
+              @{user.username}
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 pt-1 leading-relaxed max-w-xl">
+              {user.bio || 'Additive manufacturing engineer & 3D CAD designer.'}
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-3 text-xs text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <Mail size={14} />
+                <span>{user.email}</span>
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1.5">
+                <Calendar size={14} />
+                <span>Member since {new Date(user.created_at).toLocaleDateString()}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Form */}
+        {isEditing && (
+          <form onSubmit={handleSave} className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Full Name</label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                  required
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="label">Username</label>
+                <input
+                  type="text"
+                  value={formData.username || ''}
+                  onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value }))}
+                  required
+                  className="input-field"
+                />
+              </div>
             </div>
 
-            {saveError && (
-              <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg text-sm">
-                {saveError}
-              </div>
-            )}
-
-            {saveSuccess && (
-              <div className="px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg text-sm flex items-center gap-2">
-                <Check size={16} /> Profile updated successfully!
-              </div>
-            )}
-
-            {/* Avatar URL */}
             <div>
-              <label className="label flex items-center gap-2">
-                <Camera size={14} /> Avatar URL
-              </label>
+              <label className="label">Avatar Image URL</label>
               <input
                 type="url"
                 value={formData.avatar || ''}
                 onChange={(e) => setFormData((p) => ({ ...p, avatar: e.target.value }))}
-                className="input-field"
                 placeholder="https://example.com/avatar.jpg"
-              />
-              <p className="text-xs text-slate-400 mt-1">Paste a direct image URL (JPG, PNG, WebP)</p>
-            </div>
-
-            {/* Full Name */}
-            <div>
-              <label className="label">Full name</label>
-              <input
-                type="text"
-                required
-                value={formData.name || ''}
-                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
                 className="input-field"
               />
             </div>
 
-            {/* Username */}
-            <div>
-              <label className="label">Username</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
-                <input
-                  type="text"
-                  required
-                  value={formData.username || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value.toLowerCase() }))}
-                  className="input-field pl-7"
-                />
-              </div>
-            </div>
-
-            {/* Bio */}
             <div>
               <label className="label">Bio</label>
               <textarea
-                rows={3}
                 value={formData.bio || ''}
                 onChange={(e) => setFormData((p) => ({ ...p, bio: e.target.value }))}
-                className="input-field resize-none"
-                placeholder="Tell the community about yourself and your 3D printing interests..."
-                maxLength={300}
+                rows={3}
+                placeholder="Describe your design focus (e.g. drone airframes, functional mechanical prototypes, cosplay props)..."
+                className="input-field"
               />
-              <p className="text-xs text-slate-400 mt-1 text-right">
-                {(formData.bio || '').length}/300
-              </p>
             </div>
 
-            <div className="flex gap-3 justify-end pt-2">
-              <button type="button" onClick={handleCancel} className="btn-secondary">
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="btn-secondary text-xs"
+              >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="btn-primary flex items-center gap-2"
+                className="btn-primary text-xs"
               >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Check size={16} />
-                )}
-                Save Changes
+                {isSaving ? 'Saving Changes...' : 'Save Profile'}
               </button>
             </div>
           </form>
         )}
-      </div>
-
-      {/* Account info (read-only) */}
-      <div className="card">
-        <h3 className="font-semibold mb-4">Account Information</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-            <span className="text-slate-500 dark:text-slate-400">Email</span>
-            <span className="font-medium">{user.email}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
-            <span className="text-slate-500 dark:text-slate-400">User ID</span>
-            <span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">#{user.id}</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-slate-500 dark:text-slate-400">Member since</span>
-            <span className="font-medium">{joinedDate}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
