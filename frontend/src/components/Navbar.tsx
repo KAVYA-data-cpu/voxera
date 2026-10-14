@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationPanel from './NotificationPanel';
@@ -64,6 +65,7 @@ export default function Navbar() {
 
   const navItems = [
     { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+    { label: 'AI 3D Studio', to: '/generation', icon: Sparkles },
     { label: 'My Projects', to: '/projects', icon: FolderKanban },
     { label: 'Saved', to: '/saved', icon: Bookmark },
     { label: 'Profile', to: '/profile', icon: User },

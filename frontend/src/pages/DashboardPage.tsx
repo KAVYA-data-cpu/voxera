@@ -172,12 +172,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
+            <Link
+              to="/generation"
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
             >
+              <Sparkles size={16} className="stroke-[2.5]" />
+              <span>AI 3D Studio (Feature 3)</span>
+            </Link>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors"
+            >
               <Plus size={16} className="stroke-[2.5]" />
-              <span>Create New Model</span>
+              <span>New CAD Project</span>
             </button>
             <Link
               to="/projects"
@@ -348,6 +355,7 @@ export default function DashboardPage() {
             </h3>
             <div className="space-y-1.5">
               {[
+                { label: 'AI 3D Generation Studio', to: '/generation', sub: 'Generate 3D models from text & image prompts' },
                 { label: 'Browse Project Directory', to: '/projects', sub: 'Filter, search & sort CAD files' },
                 { label: 'Bookmarked Designs', to: '/saved', sub: 'Saved community & reference parts' },
                 { label: 'Engineering Profile', to: '/profile', sub: 'Profile customization & credentials' },
@@ -370,18 +378,27 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* AI 3D Print Studio Roadmap Box */}
+          {/* AI 3D Print Studio Feature 3 Card */}
           <div className="card p-5 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900 border-indigo-100 dark:border-indigo-900/40 space-y-3">
             <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-              <Cpu size={18} />
-              <h3 className="text-sm font-bold">AI Design Engine v0.3</h3>
+              <Sparkles size={18} />
+              <h3 className="text-sm font-bold">AI 3D Model Generation (Feature 3)</h3>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Automated mesh repair, overhang minimization, and prompt-to-3D generation capabilities are currently in active rollout.
+              Asynchronous remote 3D mesh generation from text prompts and 2D images with Three.js preview and GLB export.
             </p>
-            <div className="flex items-center justify-between text-xs pt-1 font-medium text-indigo-600 dark:text-indigo-400">
-              <span>Status: Feature 3 In Progress</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center justify-between text-xs pt-1 font-medium">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Status: Active & Operational
+              </span>
+              <Link
+                to="/generation"
+                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold inline-flex items-center gap-1"
+              >
+                <span>Open Studio</span>
+                <ChevronRight size={14} />
+              </Link>
             </div>
           </div>
 

@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import json
+import struct
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -39,6 +41,106 @@ def _resolved_output_dir() -> Path:
     return path
 
 
+def is_mock_mode() -> bool:
+    return _base_url().lower() in ("mock", "demo", "local")
+
+
+def _create_mock_glb() -> bytes:
+    vertices = [
+        -0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,
+         0.5,  0.5,  0.5,
+        -0.5,  0.5,  0.5,
+        -0.5, -0.5, -0.5,
+        -0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,
+         0.5, -0.5, -0.5,
+        -0.5,  0.5, -0.5,
+        -0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,
+         0.5,  0.5, -0.5,
+        -0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,
+         0.5, -0.5,  0.5,
+        -0.5, -0.5,  0.5,
+         0.5, -0.5, -0.5,
+         0.5,  0.5, -0.5,
+         0.5,  0.5,  0.5,
+         0.5, -0.5,  0.5,
+        -0.5, -0.5, -0.5,
+        -0.5, -0.5,  0.5,
+        -0.5,  0.5,  0.5,
+        -0.5,  0.5, -0.5,
+    ]
+    indices = [
+         0,  1,  2,      0,  2,  3,
+         4,  5,  6,      4,  6,  7,
+         8,  9, 10,      8, 10, 11,
+        12, 13, 14,     12, 14, 15,
+        16, 17, 18,     16, 18, 19,
+        20, 21, 22,     20, 22, 23,
+    ]
+    pos_bytes = struct.pack(f"<{len(vertices)}f", *vertices)
+    idx_bytes = struct.pack(f"<{len(indices)}H", *indices)
+    idx_padded = idx_bytes + b"\x00" * ((4 - (len(idx_bytes) % 4)) % 4)
+    bin_buffer = pos_bytes + idx_padded
+    gltf_dict = {
+        "asset": {"version": "2.0", "generator": "Voxera-Mock"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"mesh": 0, "name": "VoxeraModel"}],
+        "meshes": [{
+            "primitives": [{
+                "attributes": {"POSITION": 0},
+                "indices": 1,
+                "mode": 4,
+            }]
+        }],
+        "accessors": [
+            {
+                "bufferView": 0,
+                "byteOffset": 0,
+                "componentType": 5126,
+                "count": 24,
+                "type": "VEC3",
+                "max": [0.5, 0.5, 0.5],
+                "min": [-0.5, -0.5, -0.5],
+            },
+            {
+                "bufferView": 1,
+                "byteOffset": 0,
+                "componentType": 5123,
+                "count": 36,
+                "type": "SCALAR",
+                "max": [23],
+                "min": [0],
+            },
+        ],
+        "bufferViews": [
+            {
+                "buffer": 0,
+                "byteOffset": 0,
+                "byteLength": len(pos_bytes),
+                "target": 34962,
+            },
+            {
+                "buffer": 0,
+                "byteOffset": len(pos_bytes),
+                "byteLength": len(idx_bytes),
+                "target": 34963,
+            },
+        ],
+        "buffers": [{"byteLength": len(bin_buffer)}],
+    }
+    json_bytes = json.dumps(gltf_dict).encode("utf-8")
+    json_padded = json_bytes + b" " * ((4 - (len(json_bytes) % 4)) % 4)
+    total_length = 12 + 8 + len(json_padded) + 8 + len(bin_buffer)
+    header = struct.pack("<4sII", b"glTF", 2, total_length)
+    chunk0_hdr = struct.pack("<I4s", len(json_padded), b"JSON")
+    chunk1_hdr = struct.pack("<I4s", len(bin_buffer), b"BIN\x00")
+    return header + chunk0_hdr + json_padded + chunk1_hdr + bin_buffer
+
+
 class Hunyuan3DAdapter:
     """Thin, replaceable adapter around the documented Hunyuan3D HTTP API."""
 
@@ -46,6 +148,9 @@ class Hunyuan3DAdapter:
         return bool(_base_url())
 
     async def submit(self, params: dict[str, Any]) -> str:
+        if is_mock_mode():
+            return f"mock-{int(time.time() * 1000)}"
+
         base_url = _base_url()
         if not base_url:
             raise Hunyuan3DProviderError(
@@ -79,6 +184,12 @@ class Hunyuan3DAdapter:
         return str(uid)
 
     async def poll(self, uid: str) -> dict[str, Any]:
+        if is_mock_mode():
+            return {
+                "status": "completed",
+                "model_base64": base64.b64encode(_create_mock_glb()).decode("ascii"),
+            }
+
         base_url = _base_url()
         async with httpx.AsyncClient(timeout=settings.HUNYUAN3D_TIMEOUT_SECONDS) as client:
             try:

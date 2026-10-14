@@ -384,14 +384,17 @@ export default function ProjectDetailPage() {
               3D Workspace Initialized
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Model rendering viewport is primed. Feature 3 AI Mesh Generation will render realtime STL previews and slice previews here.
+              Generate full 3D models with AI or view existing CAD assets using the integrated Three.js viewport.
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-            <Sparkles size={13} />
-            <span>AI Model Generation Engine — Rolling out in Feature 3</span>
-          </div>
+          <Link
+            to="/generation"
+            className="btn-primary text-xs py-2 px-4 inline-flex items-center gap-2"
+          >
+            <Sparkles size={14} />
+            <span>Generate 3D Model in AI Studio</span>
+          </Link>
         </div>
 
         {/* Viewport Bottom Slicing Indicators */}

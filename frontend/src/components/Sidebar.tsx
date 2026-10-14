@@ -87,7 +87,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Version footer */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-700">
           <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
-            Voxera v0.2.0 — Feature 2
+            Voxera v0.3.0 — Feature 3 (AI Studio)
           </p>
         </div>
       </aside>
