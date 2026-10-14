@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node patch-vite.cjs"
   },
   "dependencies": {
     "@types/three": "^0.186.0",
