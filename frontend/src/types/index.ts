@@ -128,3 +128,22 @@ export interface ProjectFilters {
   status?: ProjectStatus | 'all';
   sort?: 'updated_desc' | 'updated_asc' | 'created_desc' | 'created_asc' | 'name_asc' | 'name_desc';
 }
+
+// ---- Hunyuan3D generation ----
+
+export type GenerationMode = 'text' | 'image';
+
+export type GenerationStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+export interface GenerationJob {
+  id: number;
+  user_id: number;
+  project_id: number | null;
+  mode: GenerationMode;
+  prompt: string | null;
+  status: GenerationStatus;
+  error: string | null;
+  model_url: string | null;
+  created_at: string;
+  updated_at: string;
+}

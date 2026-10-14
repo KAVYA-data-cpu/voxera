@@ -28,6 +28,7 @@ import SettingsPage from './pages/SettingsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import SavedPage from './pages/SavedPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import GenerationPage from './pages/GenerationPage';
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                <Route path="/generation" element={<GenerationPage />} />
                 <Route path="/saved" element={<SavedPage />} />
               </Route>
             </Route>

@@ -20,7 +20,7 @@
 # =========================================================
 
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 import re
 
 
@@ -275,4 +275,35 @@ class NotificationResponse(BaseModel):
     message: str
     is_read: bool
     created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+# =========================================================
+# GENERATION SCHEMAS
+# =========================================================
+
+class TextTo3DRequest(BaseModel):
+    prompt: str = Field(..., min_length=3, max_length=2000)
+    texture: bool = False
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_clean(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Prompt cannot be empty")
+        return v
+
+
+class GenerationJobResponse(BaseModel):
+    id: int
+    user_id: int
+    project_id: int | None
+    mode: str
+    prompt: str | None
+    status: str
+    error: str | None
+    model_url: str | None = None
+    created_at: datetime
+    updated_at: datetime
     model_config = {"from_attributes": True}

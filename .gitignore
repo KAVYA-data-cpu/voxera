@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 backend/venv/
+backend/.venv/
+backend/generated_models/
 
 # Build outputs
 dist/
